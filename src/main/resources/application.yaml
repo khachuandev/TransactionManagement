@@ -1,0 +1,44 @@
+spring:
+  application:
+    name: TransactionManagement
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://localhost:3306/transaction_db
+    username: root
+    password: ${DB_PASSWORD}
+  jpa:
+    show-sql: true
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQL8Dialect
+        format_sql: true
+
+encryption:
+  aes:
+    master:
+      key: ${AES_MASTER_KEY}
+
+rsa:
+  keystore:
+    path: classpath:keystore.p12
+    password: ${KEYSTORE_PASSWORD}
+  key:
+    alias: transaction-key
+
+logging:
+  level:
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+
+api:
+  prefix: /api/v1
+
+openapi:
+  service:
+    title: API Service
+    version: v1.0.0
+    description: Transaction API Service Document
+    serverUrl: http://localhost:8080
+    serverName: Server Test
