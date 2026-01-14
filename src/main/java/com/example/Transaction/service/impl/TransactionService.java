@@ -49,7 +49,6 @@ public class TransactionService implements ITransactionService {
             String destAccount = request.getDestAccount();
             BigDecimal amount = request.getAmount();
 
-            // XỬ LÝ THỜI GIAN (DÙNG HIỆN TẠI NẾU CLIENT KHÔNG GỬI)
             LocalDateTime time = (request.getTime() == null || request.getTime().isBlank())
                     ? LocalDateTime.now()
                     : LocalDateTime.parse(request.getTime(), FORMATTER);
