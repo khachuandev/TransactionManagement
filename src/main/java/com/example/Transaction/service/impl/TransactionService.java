@@ -60,7 +60,6 @@ public class TransactionService implements ITransactionService {
                         Translator.toLocale("transaction.amount.invalid"));
             }
 
-            // ===== SAFE LOG =====
             masker.logSafely(
                     "Processing TxID={}, From={}, To={}, Amount={}, Time={}",
                     transactionId, sourceAccount, destAccount, amount, time
