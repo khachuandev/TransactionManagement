@@ -3,6 +3,7 @@ package com.example.Transaction.entity;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
@@ -26,11 +27,11 @@ public class TransactionHistory {
     @Column(nullable = false, columnDefinition = "TEXT")
     private String account;
 
-    @Column(nullable = false)
-    private Double inDebt;
+    @Column(nullable = false, precision = 19, scale = 2)
+    private BigDecimal inDebt;
 
-    @Column(nullable = false)
-    private Double have;
+    @Column(nullable = false, precision = 19, scale = 2)
+    private BigDecimal have;
 
     @Column(nullable = false)
     private LocalDateTime time;

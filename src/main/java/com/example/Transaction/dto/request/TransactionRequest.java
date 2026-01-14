@@ -3,6 +3,8 @@ package com.example.Transaction.dto.request;
 import jakarta.validation.constraints.*;
 import lombok.*;
 
+import java.math.BigDecimal;
+
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
@@ -17,8 +19,10 @@ public class TransactionRequest {
     @NotBlank(message = "Destination account must not be blank")
     private String destAccount;
 
-    @NotBlank(message = "Amount must not be blank")
-    private String amount;
+    @NotNull(message = "Amount must not be null")
+    @DecimalMin(value = "0.01", message = "Amount must be greater than 0")
+    @Digits(integer = 17, fraction = 2, message = "Invalid amount format")
+    private BigDecimal amount;
 
     private String time;
 }

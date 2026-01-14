@@ -7,7 +7,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Component;
 
-import javax.crypto.Cipher;
 import java.io.FileInputStream;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
@@ -21,12 +20,6 @@ import java.util.Base64;
 @Component
 public class RSAUtils {
     private static final String KEYSTORE_TYPE = "PKCS12";
-    private static final String RSA_ALGORITHM = "RSA";
-
-    // HỖ TRỢ CẢ 2 PADDING MODE
-    private static final String RSA_OAEP = "RSA/ECB/OAEPWITHSHA-256ANDMGF1PADDING";
-    private static final String RSA_PKCS1 = "RSA/ECB/PKCS1Padding";
-
     private static final String SIGNATURE_ALGORITHM = "SHA256withRSA";
     private static final String CLASSPATH_PREFIX = "classpath:";
 
@@ -38,10 +31,6 @@ public class RSAUtils {
 
     @Value("${rsa.key.alias}")
     private String keyAlias;
-
-    // CHỌN PADDING MODE TỪ CONFIG (OAEP hoặc PKCS1)
-    @Value("${rsa.padding.mode:PKCS1}")
-    private String paddingMode;
 
     /* ========== LOAD KEYSTORE ========== */
     private KeyStore loadKeyStore() {
@@ -103,13 +92,6 @@ public class RSAUtils {
         }
     }
 
-    /**
-     * LẤY TRANSFORMATION DỰA TRÊN CONFIG
-     */
-    private String getTransformation() {
-        return "PKCS1".equalsIgnoreCase(paddingMode) ? RSA_PKCS1 : RSA_OAEP;
-    }
-
     /* ========== SIGN & VERIFY ========== */
     public String sign(String data) {
         try {
@@ -132,54 +114,6 @@ public class RSAUtils {
         } catch (Exception e) {
             log.error("RSA verify failed", e);
             return false;
-        }
-    }
-
-    /* ========== RSA ENCRYPT/DECRYPT ========== */
-    /**
-     * Mã hóa RSA với padding mode từ config
-     */
-    public String encrypt(String plainText) {
-        try {
-            Cipher cipher = Cipher.getInstance(getTransformation());
-            cipher.init(Cipher.ENCRYPT_MODE, getPublicKey());
-            byte[] encrypted = cipher.doFinal(plainText.getBytes(StandardCharsets.UTF_8));
-            return Base64.getEncoder().encodeToString(encrypted);
-        } catch (Exception e) {
-            log.error("RSA encrypt failed", e);
-            throw new RSAKeyLoadException(Translator.toLocale("rsa.encrypt.failed"), e);
-        }
-    }
-
-    /**
-     * Giải mã RSA - TỰ ĐỘNG THỬ CẢ 2 PADDING MODE
-     * Ưu tiên dùng padding mode từ config, nếu fail thì thử mode còn lại
-     */
-    public String decrypt(String encryptedBase64) {
-        String primaryMode = getTransformation();
-        String fallbackMode = "PKCS1".equalsIgnoreCase(paddingMode) ? RSA_OAEP : RSA_PKCS1;
-
-        // Thử padding mode chính trước
-        try {
-            Cipher cipher = Cipher.getInstance(primaryMode);
-            cipher.init(Cipher.DECRYPT_MODE, getPrivateKey());
-            byte[] decrypted = cipher.doFinal(Base64.getDecoder().decode(encryptedBase64));
-            log.debug("Decrypted successfully with {} padding", paddingMode);
-            return new String(decrypted, StandardCharsets.UTF_8);
-        } catch (Exception e1) {
-            log.debug("{} decryption failed, trying fallback mode...", paddingMode);
-
-            // Nếu fail, thử padding mode dự phòng
-            try {
-                Cipher cipher = Cipher.getInstance(fallbackMode);
-                cipher.init(Cipher.DECRYPT_MODE, getPrivateKey());
-                byte[] decrypted = cipher.doFinal(Base64.getDecoder().decode(encryptedBase64));
-                log.debug("Decrypted successfully with fallback padding");
-                return new String(decrypted, StandardCharsets.UTF_8);
-            } catch (Exception e2) {
-                log.error("RSA decrypt failed with both padding modes", e2);
-                throw new RSAKeyLoadException(Translator.toLocale("rsa.decrypt.failed"), e2);
-            }
         }
     }
 }
