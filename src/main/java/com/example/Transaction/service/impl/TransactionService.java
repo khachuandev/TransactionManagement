@@ -5,7 +5,6 @@ import com.example.Transaction.dto.request.TransactionRequest;
 import com.example.Transaction.dto.response.TransactionResponse;
 import com.example.Transaction.entity.TransactionHistory;
 import com.example.Transaction.exception.TransactionProcessingException;
-import com.example.Transaction.mapper.TransactionMapper;
 import com.example.Transaction.repository.TransactionHistoryRepository;
 import com.example.Transaction.service.ITransactionService;
 import com.example.Transaction.util.AESUtils;
@@ -31,7 +30,6 @@ public class TransactionService implements ITransactionService {
     private final AESUtils aesUtils;
     private final RSAUtils rsaUtils;
     private final SensitiveDataMasker masker;
-    private final TransactionMapper transactionMapper;
 
     /**
      * Xử lý giao dịch chuyển khoản
