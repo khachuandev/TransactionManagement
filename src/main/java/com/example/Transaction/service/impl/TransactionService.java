@@ -37,10 +37,6 @@ public class TransactionService implements ITransactionService {
     private final SensitiveDataMasker masker;
     private final TransactionMapper transactionMapper;
 
-    // ĐỌC CỜ RSA TỪ CONFIG
-    @Value("${rsa.encryption.enabled:false}")
-    private boolean rsaEnabled;
-
     /**
      * Xử lý giao dịch chuyển khoản
      * - Hỗ trợ cả RSA encrypted và plain text (tùy config)
@@ -57,38 +53,20 @@ public class TransactionService implements ITransactionService {
         LocalDateTime time = null;
 
         try {
-            log.debug("Processing transaction with RSA encryption: {}", rsaEnabled);
+            // Giải mã RSA tất cả parameters
+            transactionId = rsaUtils.decrypt(request.getTransactionId());
+            sourceAccount = rsaUtils.decrypt(request.getSourceAccount());
+            destAccount = rsaUtils.decrypt(request.getDestAccount());
 
-            // BƯỚC 1: GIẢI MÃ RSA NẾU ENABLED, KHÔNG THÌ DÙNG PLAIN TEXT
-            if (rsaEnabled) {
-                // Giải mã RSA tất cả parameters
-                transactionId = rsaUtils.decrypt(request.getTransactionId());
-                sourceAccount = rsaUtils.decrypt(request.getSourceAccount());
-                destAccount = rsaUtils.decrypt(request.getDestAccount());
+            String amountStr = rsaUtils.decrypt(request.getAmount());
+            amount = Double.parseDouble(amountStr);
 
-                String amountStr = rsaUtils.decrypt(request.getAmount());
-                amount = Double.parseDouble(amountStr);
-
-                String timeStr = request.getTime();
-                if (timeStr != null && !timeStr.isBlank()) {
-                    timeStr = rsaUtils.decrypt(timeStr);
-                    time = LocalDateTime.parse(timeStr, DATE_TIME_FORMATTER);
-                } else {
-                    time = LocalDateTime.now();
-                }
+            String timeStr = request.getTime();
+            if (timeStr != null && !timeStr.isBlank()) {
+                timeStr = rsaUtils.decrypt(timeStr);
+                time = LocalDateTime.parse(timeStr, DATE_TIME_FORMATTER);
             } else {
-                // MODE PLAIN TEXT (CHO TEST LOCAL)
-                transactionId = request.getTransactionId();
-                sourceAccount = request.getSourceAccount();
-                destAccount = request.getDestAccount();
-                amount = Double.parseDouble(request.getAmount());
-
-                String timeStr = request.getTime();
-                if (timeStr != null && !timeStr.isBlank()) {
-                    time = LocalDateTime.parse(timeStr, DATE_TIME_FORMATTER);
-                } else {
-                    time = LocalDateTime.now();
-                }
+                time = LocalDateTime.now();
             }
 
             // BƯỚC 2: VALIDATE SAU KHI GIẢI MÃ
@@ -136,26 +114,14 @@ public class TransactionService implements ITransactionService {
             log.info("Transaction completed successfully - TxID: {}", masker.mask(transactionId));
 
             // BƯỚC 6: MÃ HÓA RSA KẾT QUẢ TRẢ VỀ (NẾU ENABLED)
-            if (rsaEnabled) {
-                return TransactionResponse.builder()
-                        .message("Transaction processed successfully")
-                        .encryptedTransactionId(rsaUtils.encrypt(transactionId))
-                        .encryptedSourceAccount(rsaUtils.encrypt(sourceAccount))
-                        .encryptedDestAccount(rsaUtils.encrypt(destAccount))
-                        .encryptedAmount(rsaUtils.encrypt(amount.toString()))
-                        .encryptedTime(rsaUtils.encrypt(time.format(DATE_TIME_FORMATTER)))
-                        .build();
-            } else {
-                // Plain text response (cho test)
-                return TransactionResponse.builder()
-                        .message("Transaction processed successfully")
-                        .encryptedTransactionId(transactionId)
-                        .encryptedSourceAccount(sourceAccount)
-                        .encryptedDestAccount(destAccount)
-                        .encryptedAmount(amount.toString())
-                        .encryptedTime(time.format(DATE_TIME_FORMATTER))
-                        .build();
-            }
+            return TransactionResponse.builder()
+                    .message("Transaction processed successfully")
+                    .encryptedTransactionId(rsaUtils.encrypt(transactionId))
+                    .encryptedSourceAccount(rsaUtils.encrypt(sourceAccount))
+                    .encryptedDestAccount(rsaUtils.encrypt(destAccount))
+                    .encryptedAmount(rsaUtils.encrypt(amount.toString()))
+                    .encryptedTime(rsaUtils.encrypt(time.format(DATE_TIME_FORMATTER)))
+                    .build();
 
         } catch (NumberFormatException e) {
             // PHẢI CATCH NumberFormatException TRƯỚC vì nó là subclass của IllegalArgumentException
