@@ -44,7 +44,6 @@ public class TransactionService implements ITransactionService {
     @Transactional
     public TransactionResponse processTransfer(TransactionRequest request) {
         try {
-            // LẤY DỮ LIỆU PLAIN TEXT TỪ REQUEST
             String transactionId = request.getTransactionId();
             String sourceAccount = request.getSourceAccount();
             String destAccount = request.getDestAccount();
@@ -55,7 +54,6 @@ public class TransactionService implements ITransactionService {
                     ? LocalDateTime.now()
                     : LocalDateTime.parse(request.getTime(), FORMATTER);
 
-            // VALIDATE SỐ TIỀN
             if (amount.compareTo(BigDecimal.ZERO) <= 0) {
                 throw new IllegalArgumentException(Translator.toLocale("transaction.amount.invalid"));
             }
