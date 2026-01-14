@@ -31,7 +31,6 @@ public class TransactionService implements ITransactionService {
     private final AESUtils aesUtils;
     private final RSAUtils rsaUtils;
     private final SensitiveDataMasker masker;
-    private final TransactionMapper transactionMapper;
 
     /**
      * Xử lý giao dịch chuyển khoản
