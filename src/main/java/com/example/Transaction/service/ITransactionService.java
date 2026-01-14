@@ -8,5 +8,4 @@ import java.util.List;
 
 public interface ITransactionService {
     TransactionResponse processTransfer(TransactionRequest request);
-    List<TransactionHistoryResponse> getTransactionsByTransactionId(String transactionId);
 }

@@ -46,26 +46,4 @@ public class TransactionController {
         TransactionResponse response = transactionService.processTransfer(request);
         return ResponseEntity.ok(ApiRes.success(response));
     }
-
-    /**
-     * API lấy tất cả lịch sử giao dịch theo TransactionID
-     * TransactionID được truyền vào là plain text
-     */
-    @Operation(summary = "Lấy danh sách lịch sử giao dịch theo TransactionID")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "Lấy lịch sử giao dịch thành công",
-                    content = @Content(mediaType = "application/json",
-                            schema = @Schema(implementation = TransactionHistoryResponse.class))),
-            @ApiResponse(responseCode = "400", description = "TransactionID không hợp lệ",
-                    content = @Content(mediaType = "application/json")),
-            @ApiResponse(responseCode = "500", description = "Lỗi hệ thống khi truy xuất lịch sử giao dịch",
-                    content = @Content(mediaType = "application/json"))
-    })
-    @GetMapping("/history")
-    public ResponseEntity<ApiRes<List<TransactionHistoryResponse>>> getTransactionsByTransactionId(
-            @RequestParam String transactionId) {
-        List<TransactionHistoryResponse> historyList =
-                transactionService.getTransactionsByTransactionId(transactionId);
-        return ResponseEntity.ok(ApiRes.success(historyList));
-    }
 }

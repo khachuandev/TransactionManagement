@@ -7,6 +7,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Component;
 
+import javax.crypto.Cipher;
 import java.io.FileInputStream;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
@@ -22,6 +23,7 @@ public class RSAUtils {
     private static final String KEYSTORE_TYPE = "PKCS12";
     private static final String SIGNATURE_ALGORITHM = "SHA256withRSA";
     private static final String CLASSPATH_PREFIX = "classpath:";
+    private static final String RSA_TRANSFORMATION = "RSA/ECB/OAEPWithSHA-256AndMGF1Padding";
 
     @Value("${rsa.keystore.path}")
     private String keystorePath;
@@ -114,6 +116,34 @@ public class RSAUtils {
         } catch (Exception e) {
             log.error("RSA verify failed", e);
             return false;
+        }
+    }
+
+    /* ================= ENCRYPT ================= */
+    public String encrypt(String plainText) {
+        try {
+            Cipher cipher = Cipher.getInstance(RSA_TRANSFORMATION);
+            cipher.init(Cipher.ENCRYPT_MODE, getPublicKey());
+            byte[] encrypted = cipher.doFinal(
+                    plainText.getBytes(StandardCharsets.UTF_8));
+            return Base64.getEncoder().encodeToString(encrypted);
+        } catch (Exception e) {
+            throw new RSAKeyLoadException(
+                    Translator.toLocale("rsa.encrypt.failed"), e);
+        }
+    }
+
+    /* ================= DECRYPT ================= */
+    public String decrypt(String encryptedBase64) {
+        try {
+            Cipher cipher = Cipher.getInstance(RSA_TRANSFORMATION);
+            cipher.init(Cipher.DECRYPT_MODE, getPrivateKey());
+            byte[] decrypted = cipher.doFinal(
+                    Base64.getDecoder().decode(encryptedBase64));
+            return new String(decrypted, StandardCharsets.UTF_8);
+        } catch (Exception e) {
+            throw new RSAKeyLoadException(
+                    Translator.toLocale("rsa.decrypt.failed"), e);
         }
     }
 }

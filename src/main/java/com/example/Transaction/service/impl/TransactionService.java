@@ -2,7 +2,6 @@ package com.example.Transaction.service.impl;
 
 import com.example.Transaction.config.Translator;
 import com.example.Transaction.dto.request.TransactionRequest;
-import com.example.Transaction.dto.response.TransactionHistoryResponse;
 import com.example.Transaction.dto.response.TransactionResponse;
 import com.example.Transaction.entity.TransactionHistory;
 import com.example.Transaction.exception.TransactionProcessingException;
@@ -10,6 +9,7 @@ import com.example.Transaction.mapper.TransactionMapper;
 import com.example.Transaction.repository.TransactionHistoryRepository;
 import com.example.Transaction.service.ITransactionService;
 import com.example.Transaction.util.AESUtils;
+import com.example.Transaction.util.RSAUtils;
 import com.example.Transaction.util.SensitiveDataMasker;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -19,8 +19,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.List;
-import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -31,6 +29,7 @@ public class TransactionService implements ITransactionService {
 
     private final TransactionHistoryRepository transactionHistoryRepository;
     private final AESUtils aesUtils;
+    private final RSAUtils rsaUtils;
     private final SensitiveDataMasker masker;
     private final TransactionMapper transactionMapper;
 
@@ -44,30 +43,36 @@ public class TransactionService implements ITransactionService {
     @Transactional
     public TransactionResponse processTransfer(TransactionRequest request) {
         try {
-            String transactionId = request.getTransactionId();
-            String sourceAccount = request.getSourceAccount();
-            String destAccount = request.getDestAccount();
-            BigDecimal amount = request.getAmount();
+            // ===== RSA DECRYPT =====
+            String transactionId = rsaUtils.decrypt(request.getTransactionId());
+            String sourceAccount = rsaUtils.decrypt(request.getSourceAccount());
+            String destAccount = rsaUtils.decrypt(request.getDestAccount());
 
-            LocalDateTime time = (request.getTime() == null || request.getTime().isBlank())
+            BigDecimal amount = new BigDecimal(
+                    rsaUtils.decrypt(request.getAmount())
+            );
+
+            LocalDateTime time = request.getTime() == null
                     ? LocalDateTime.now()
-                    : LocalDateTime.parse(request.getTime(), FORMATTER);
+                    : LocalDateTime.parse(
+                    rsaUtils.decrypt(request.getTime()), FORMATTER);
 
             if (amount.compareTo(BigDecimal.ZERO) <= 0) {
-                throw new IllegalArgumentException(Translator.toLocale("transaction.amount.invalid"));
+                throw new IllegalArgumentException(
+                        Translator.toLocale("transaction.amount.invalid"));
             }
 
-            // LOG AN TOÀN (CHE DỮ LIỆU NHẠY CẢM)
+            // ===== SAFE LOG =====
             masker.logSafely(
                     "Processing TxID={}, From={}, To={}, Amount={}, Time={}",
                     transactionId, sourceAccount, destAccount, amount, time
             );
 
-            // AES MÃ HÓA ACCOUNT TRƯỚC KHI LƯU DATABASE
+            // ===== AES ENCRYPT FOR DB =====
             String encryptedSource = aesUtils.encryptForDB(sourceAccount);
             String encryptedDest = aesUtils.encryptForDB(destAccount);
 
-            // TẠO BẢN GHI NỢ (SOURCE ACCOUNT)
+            // ===== SAVE DEBIT =====
             transactionHistoryRepository.save(TransactionHistory.builder()
                     .transactionId(transactionId)
                     .account(encryptedSource)
@@ -77,7 +82,7 @@ public class TransactionService implements ITransactionService {
                     .build()
             );
 
-            // TẠO BẢN GHI CÓ (DESTINATION ACCOUNT)
+            // ===== SAVE CREDIT =====
             transactionHistoryRepository.save(TransactionHistory.builder()
                     .transactionId(transactionId)
                     .account(encryptedDest)
@@ -97,18 +102,8 @@ public class TransactionService implements ITransactionService {
 
         } catch (Exception e) {
             log.error("Transaction failed", e);
-            throw new TransactionProcessingException(Translator.toLocale("transaction.failed"));
+            throw new TransactionProcessingException(
+                    Translator.toLocale("transaction.failed"));
         }
-    }
-
-    /**
-     * Lấy lịch sử giao dịch theo TransactionID
-     */
-    @Override
-    public List<TransactionHistoryResponse> getTransactionsByTransactionId(String transactionId) {
-        return transactionHistoryRepository.findByTransactionId(transactionId)
-                .stream()
-                .map(transactionMapper::toHistoryResponse)
-                .collect(Collectors.toList());
     }
 }

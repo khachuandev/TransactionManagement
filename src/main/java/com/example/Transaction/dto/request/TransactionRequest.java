@@ -19,10 +19,9 @@ public class TransactionRequest {
     @NotBlank(message = "Destination account must not be blank")
     private String destAccount;
 
-    @NotNull(message = "Amount must not be null")
-    @DecimalMin(value = "0.01", message = "Amount must be greater than 0")
-    @Digits(integer = 17, fraction = 2, message = "Invalid amount format")
-    private BigDecimal amount;
+    @NotBlank(message = "Amount is required")
+    @Pattern(regexp = "^[A-Za-z0-9+/=]+$", message = "Amount must be RSA encrypted")
+    private String amount;
 
     private String time;
 }
