@@ -43,63 +43,64 @@ public class TransactionService implements ITransactionService {
     @Override
     @Transactional
     public TransactionResponse processTransfer(TransactionRequest request) {
-
         try {
+            // LẤY DỮ LIỆU PLAIN TEXT TỪ REQUEST
             String transactionId = request.getTransactionId();
             String sourceAccount = request.getSourceAccount();
             String destAccount = request.getDestAccount();
             BigDecimal amount = request.getAmount();
 
+            // XỬ LÝ THỜI GIAN (DÙNG HIỆN TẠI NẾU CLIENT KHÔNG GỬI)
             LocalDateTime time = (request.getTime() == null || request.getTime().isBlank())
                     ? LocalDateTime.now()
                     : LocalDateTime.parse(request.getTime(), FORMATTER);
 
+            // VALIDATE SỐ TIỀN
             if (amount.compareTo(BigDecimal.ZERO) <= 0) {
-                throw new IllegalArgumentException("Amount must be greater than 0");
+                throw new IllegalArgumentException(Translator.toLocale("transaction.amount.invalid"));
             }
 
+            // LOG AN TOÀN (CHE DỮ LIỆU NHẠY CẢM)
             masker.logSafely(
                     "Processing TxID={}, From={}, To={}, Amount={}, Time={}",
                     transactionId, sourceAccount, destAccount, amount, time
             );
 
+            // AES MÃ HÓA ACCOUNT TRƯỚC KHI LƯU DATABASE
             String encryptedSource = aesUtils.encryptForDB(sourceAccount);
             String encryptedDest = aesUtils.encryptForDB(destAccount);
 
-            transactionHistoryRepository.save(
-                    TransactionHistory.builder()
-                            .transactionId(transactionId)
-                            .account(encryptedSource)
-                            .inDebt(amount)
-                            .have(ZERO_AMOUNT)
-                            .time(time)
-                            .build()
+            // TẠO BẢN GHI NỢ (SOURCE ACCOUNT)
+            transactionHistoryRepository.save(TransactionHistory.builder()
+                    .transactionId(transactionId)
+                    .account(encryptedSource)
+                    .inDebt(amount)
+                    .have(ZERO_AMOUNT)
+                    .time(time)
+                    .build()
             );
 
-            transactionHistoryRepository.save(
-                    TransactionHistory.builder()
-                            .transactionId(transactionId)
-                            .account(encryptedDest)
-                            .inDebt(ZERO_AMOUNT)
-                            .have(amount)
-                            .time(time)
-                            .build()
+            // TẠO BẢN GHI CÓ (DESTINATION ACCOUNT)
+            transactionHistoryRepository.save(TransactionHistory.builder()
+                    .transactionId(transactionId)
+                    .account(encryptedDest)
+                    .inDebt(ZERO_AMOUNT)
+                    .have(amount)
+                    .time(time)
+                    .build()
             );
 
             return TransactionResponse.builder()
-                    .message("Transaction processed successfully")
-                    .encryptedTransactionId(transactionId)
-                    .encryptedSourceAccount(sourceAccount)
-                    .encryptedDestAccount(destAccount)
-                    .encryptedAmount(String.valueOf(amount))
-                    .encryptedTime(String.valueOf(time))
+                    .transactionId(transactionId)
+                    .sourceAccount(sourceAccount)
+                    .destAccount(destAccount)
+                    .amount(amount)
+                    .time(time)
                     .build();
 
         } catch (Exception e) {
             log.error("Transaction failed", e);
-            throw new TransactionProcessingException(
-                    Translator.toLocale("transaction.failed")
-            );
+            throw new TransactionProcessingException(Translator.toLocale("transaction.failed"));
         }
     }
 
