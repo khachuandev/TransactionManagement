@@ -49,7 +49,7 @@ public class TransactionController {
 
     /**
      * API lấy tất cả lịch sử giao dịch theo TransactionID
-     * TransactionID được truyền vào là plain text, service sẽ handle tìm và decrypt
+     * TransactionID được truyền vào là plain text
      */
     @Operation(summary = "Lấy danh sách lịch sử giao dịch theo TransactionID")
     @ApiResponses(value = {

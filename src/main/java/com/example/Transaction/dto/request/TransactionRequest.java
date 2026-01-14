@@ -17,9 +17,8 @@ public class TransactionRequest {
     @NotBlank(message = "Destination account must not be blank")
     private String destAccount;
 
-    @NotNull(message = "Amount must not be null")
-    @Positive(message = "Amount must be greater than 0")
-    private Double amount;
+    @NotBlank(message = "Amount must not be blank")
+    private String amount;
 
     private String time;
 }

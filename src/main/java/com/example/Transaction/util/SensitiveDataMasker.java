@@ -6,13 +6,11 @@ import org.springframework.stereotype.Component;
 @Slf4j
 @Component
 public class SensitiveDataMasker {
-    // ======= Các giá trị mặc định =======
     private static final String NULL_VALUE = "null";
     private static final String EMPTY_VALUE = "";
     private static final int MAX_MASK_LENGTH = 10;
     private static final char MASK_CHAR = '?';
     private static final String EXCEPTION_DEFAULT = "Exception occurred";
-    private static final String MASK_PATTERN = "[0-9A-Za-z]";
 
     /**
      * Che dữ liệu nhạy cảm bằng dấu ?
@@ -26,11 +24,17 @@ public class SensitiveDataMasker {
     }
 
     /**
-     * Che exception message
+     * CẢI THIỆN: Che exception message hoàn toàn
+     * Không lộ format, chỉ giữ class name
      */
     public String maskException(Exception e) {
-        if (e == null || e.getMessage() == null) return EXCEPTION_DEFAULT;
-        return e.getMessage().replaceAll(MASK_PATTERN, String.valueOf(MASK_CHAR));
+        if (e == null) {
+            return EXCEPTION_DEFAULT;
+        }
+
+        // Chỉ trả về loại exception, không trả về message để tránh leak
+        String className = e.getClass().getSimpleName();
+        return className + ": [SENSITIVE DATA MASKED]";
     }
 
     /**

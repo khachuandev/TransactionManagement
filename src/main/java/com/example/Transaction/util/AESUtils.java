@@ -23,7 +23,7 @@ public class AESUtils {
     private static final String AES_ALGORITHM = "AES";
     private static final String AES_TRANSFORMATION = "AES/CBC/PKCS5Padding";
     private static final int IV_SIZE = 16;
-    private static final String hashAlgorithm = "SHA-256";
+    private static final String HASH_ALGORITHM = "SHA-256";
 
     @Value("${encryption.aes.master.key}")
     private String masterKey;
@@ -35,7 +35,7 @@ public class AESUtils {
     private SecretKeySpec getSecretKey() {
         try {
             byte[] key = masterKey.getBytes(StandardCharsets.UTF_8);
-            MessageDigest sha = MessageDigest.getInstance(hashAlgorithm);
+            MessageDigest sha = MessageDigest.getInstance(HASH_ALGORITHM);
             key = sha.digest(key);
             key = Arrays.copyOf(key, 32);
             return new SecretKeySpec(key, AES_ALGORITHM);

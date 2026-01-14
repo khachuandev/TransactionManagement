@@ -22,8 +22,13 @@ import java.util.Base64;
 public class RSAUtils {
     private static final String KEYSTORE_TYPE = "PKCS12";
     private static final String RSA_ALGORITHM = "RSA";
+
+    // HỖ TRỢ CẢ 2 PADDING MODE
+    private static final String RSA_OAEP = "RSA/ECB/OAEPWITHSHA-256ANDMGF1PADDING";
+    private static final String RSA_PKCS1 = "RSA/ECB/PKCS1Padding";
+
     private static final String SIGNATURE_ALGORITHM = "SHA256withRSA";
-    private static final String keystorePrefix = "classpath:";
+    private static final String CLASSPATH_PREFIX = "classpath:";
 
     @Value("${rsa.keystore.path}")
     private String keystorePath;
@@ -34,14 +39,18 @@ public class RSAUtils {
     @Value("${rsa.key.alias}")
     private String keyAlias;
 
+    // CHỌN PADDING MODE TỪ CONFIG (OAEP hoặc PKCS1)
+    @Value("${rsa.padding.mode:PKCS1}")
+    private String paddingMode;
+
     /* ========== LOAD KEYSTORE ========== */
     private KeyStore loadKeyStore() {
         try {
             KeyStore keyStore = KeyStore.getInstance(KEYSTORE_TYPE);
 
             InputStream is;
-            if (keystorePath.startsWith(keystorePrefix)) {
-                String path = keystorePath.substring(keystorePrefix.length());
+            if (keystorePath.startsWith(CLASSPATH_PREFIX)) {
+                String path = keystorePath.substring(CLASSPATH_PREFIX.length());
                 log.info("Loading keystore from classpath: {}", path);
                 ClassPathResource resource = new ClassPathResource(path);
                 is = resource.getInputStream();
@@ -94,7 +103,14 @@ public class RSAUtils {
         }
     }
 
-    /* ========== SIGN ========== */
+    /**
+     * LẤY TRANSFORMATION DỰA TRÊN CONFIG
+     */
+    private String getTransformation() {
+        return "PKCS1".equalsIgnoreCase(paddingMode) ? RSA_PKCS1 : RSA_OAEP;
+    }
+
+    /* ========== SIGN & VERIFY ========== */
     public String sign(String data) {
         try {
             Signature signature = Signature.getInstance(SIGNATURE_ALGORITHM);
@@ -119,13 +135,13 @@ public class RSAUtils {
         }
     }
 
-    /* ========== RSA ENCRYPT/DECRYPT - DÙNG CHO INTER-SERVICE ========== */
+    /* ========== RSA ENCRYPT/DECRYPT ========== */
     /**
-     * Mã hóa RSA - Dùng cho parameters giữa các services
+     * Mã hóa RSA với padding mode từ config
      */
     public String encrypt(String plainText) {
         try {
-            Cipher cipher = Cipher.getInstance(RSA_ALGORITHM);
+            Cipher cipher = Cipher.getInstance(getTransformation());
             cipher.init(Cipher.ENCRYPT_MODE, getPublicKey());
             byte[] encrypted = cipher.doFinal(plainText.getBytes(StandardCharsets.UTF_8));
             return Base64.getEncoder().encodeToString(encrypted);
@@ -136,26 +152,34 @@ public class RSAUtils {
     }
 
     /**
-     * Giải mã RSA - Dùng cho parameters từ services khác
+     * Giải mã RSA - TỰ ĐỘNG THỬ CẢ 2 PADDING MODE
+     * Ưu tiên dùng padding mode từ config, nếu fail thì thử mode còn lại
      */
     public String decrypt(String encryptedBase64) {
+        String primaryMode = getTransformation();
+        String fallbackMode = "PKCS1".equalsIgnoreCase(paddingMode) ? RSA_OAEP : RSA_PKCS1;
+
+        // Thử padding mode chính trước
         try {
-            Cipher cipher = Cipher.getInstance(RSA_ALGORITHM);
+            Cipher cipher = Cipher.getInstance(primaryMode);
             cipher.init(Cipher.DECRYPT_MODE, getPrivateKey());
             byte[] decrypted = cipher.doFinal(Base64.getDecoder().decode(encryptedBase64));
+            log.debug("Decrypted successfully with {} padding", paddingMode);
             return new String(decrypted, StandardCharsets.UTF_8);
-        } catch (Exception e) {
-            log.error("RSA decrypt failed", e);
-            throw new RSAKeyLoadException(Translator.toLocale("rsa.decrypt.failed"), e);
+        } catch (Exception e1) {
+            log.debug("{} decryption failed, trying fallback mode...", paddingMode);
+
+            // Nếu fail, thử padding mode dự phòng
+            try {
+                Cipher cipher = Cipher.getInstance(fallbackMode);
+                cipher.init(Cipher.DECRYPT_MODE, getPrivateKey());
+                byte[] decrypted = cipher.doFinal(Base64.getDecoder().decode(encryptedBase64));
+                log.debug("Decrypted successfully with fallback padding");
+                return new String(decrypted, StandardCharsets.UTF_8);
+            } catch (Exception e2) {
+                log.error("RSA decrypt failed with both padding modes", e2);
+                throw new RSAKeyLoadException(Translator.toLocale("rsa.decrypt.failed"), e2);
+            }
         }
-    }
-
-    /* ========== LEGACY METHODS - GIỮ LẠI ĐỂ TƯƠNG THÍCH ========== */
-    public String encryptAESKey(String aesKeyBase64) {
-        return encrypt(aesKeyBase64);
-    }
-
-    public String decryptAESKey(String encryptedAESKeyBase64) {
-        return decrypt(encryptedAESKeyBase64);
     }
 }

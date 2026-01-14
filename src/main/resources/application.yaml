@@ -26,6 +26,10 @@ rsa:
     password: ${KEYSTORE_PASSWORD}
   key:
     alias: transaction-key
+  encryption:
+    enabled: ${RSA_ENABLED:false}
+  padding:
+    mode: PKCS1
 
 logging:
   level:
